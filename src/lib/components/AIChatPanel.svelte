@@ -1,7 +1,6 @@
 <script lang="ts">
   import Card from '$/components/Card/Card.svelte';
   import { Button } from '$/components/ui/button';
-  import { Separator } from '$/components/ui/separator';
   import {
     chatMessagesStore,
     clearChat,
@@ -159,7 +158,7 @@
   <div class="flex h-full flex-col overflow-hidden">
     <div bind:this={messagesContainer} class="flex-1 overflow-y-auto p-2" id="aiChatList">
       {#if $chatMessagesStore.length === 0}
-        <div class="m-2 flex h-full flex-col items-center justify-center gap-4 text-center">
+        <div class="mx-2 my-3 flex h-full flex-col items-center justify-center gap-4 text-center">
           <div class="text-muted-foreground">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -193,14 +192,14 @@
           {/if}
         </div>
       {:else}
-        <ul class="flex h-full min-w-fit flex-col gap-2">
+        <ul class="flex h-full min-w-fit flex-col gap-3">
           {#each $chatMessagesStore as message, messageIdx}
             <li class="flex flex-col gap-2">
               {#if message.role === 'user'}
                 <div class="flex justify-end">
                   <div
                     class="max-w-[85%] rounded-2xl rounded-br-sm bg-accent px-3 py-2 text-sm text-accent-foreground">
-                    <p class="whitespace-pre-wrap">{message.content}</p>
+                    <p class="my-0.5 whitespace-pre-wrap leading-snug break-words">{message.content}</p>
                   </div>
                 </div>
               {:else if message.role === 'assistant'}
@@ -253,12 +252,12 @@
                           </div>
                           {#if isExpanded}
                             <div class="border-t border-border bg-muted/40 px-2.5 py-2">
-                              <pre class="whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-foreground">{part.content}</pre>
+                              <pre class="my-0.5 whitespace-pre-wrap break-words font-mono text-[10px] leading-snug text-foreground">{part.content}</pre>
                             </div>
                           {/if}
                         </div>
                       {:else}
-                        <p class="whitespace-pre-wrap">{part.content}</p>
+                        <p class="my-0.5 whitespace-pre-wrap leading-snug break-words">{part.content}</p>
                       {/if}
                     {/each}
                     {#if !message.content && $isChatLoadingStore}
@@ -271,7 +270,6 @@
                   </div>
                 </div>
               {/if}
-              <Separator />
             </li>
           {/each}
 
