@@ -2,21 +2,17 @@
   import McWrapper from '$/components/McWrapper.svelte';
   import * as Popover from '$/components/ui/popover';
   import { Switch } from '$/components/ui/switch';
-  import { env } from '$/util/env';
-  import { urlsStore } from '$/util/state';
+  import { updateCodeStore, urlsStore } from '$/util/state';
   import { logMermaidChartClick } from '$/util/stats';
   import { cn } from '$/utils';
   import { mode, setMode } from 'mode-watcher';
   import type { Component, Snippet } from 'svelte';
-  import MermaidTailIcon from '~icons/custom/mermaid-tail';
   import AddIcon from '~icons/material-symbols/add-2-rounded';
-  import BookIcon from '~icons/material-symbols/book-2-outline-rounded';
   import DuplicateIcon from '~icons/material-symbols/content-copy-outline-rounded';
   import ContrastIcon from '~icons/material-symbols/contrast';
   import PluginIcon from '~icons/material-symbols/electrical-services-rounded';
   import MenuIcon from '~icons/material-symbols/menu-rounded';
-  import CommunityIcon from '~icons/material-symbols/person-play-outline-rounded';
-  import PlaygroundIcon from '~icons/material-symbols/shape-line-outline';
+  import UploadIcon from '~icons/material-symbols/upload-rounded';
   import MermaidChartIcon from './MermaidChartIcon.svelte';
 
   interface MenuItem {
@@ -31,33 +27,33 @@
     renderer: (item: Omit<MenuItem, 'renderer'>) => ReturnType<Snippet>;
   }
 
+  const openFile = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.mmd,text/plain,.txt';
+    input.addEventListener('change', async ({ target }: Event) => {
+      const file = (target as HTMLInputElement)?.files?.[0];
+      if (!file) {
+        return;
+      }
+
+      const code = await file.text();
+      updateCodeStore({
+        code,
+        updateDiagram: true
+      });
+    });
+    input.click();
+  };
+
   const menuItems: MenuItem[] = $derived([
     { label: 'New', icon: AddIcon, href: $urlsStore.new, renderer: menuItem },
     { label: 'Duplicate', icon: DuplicateIcon, href: window.location.href, renderer: menuItem },
     {
-      href: $urlsStore.mermaidChart({ medium: 'main_menu' }).playground,
-      icon: PlaygroundIcon,
-      isSectionEnd: true,
-      label: 'Edit in Playground',
-      onclick: () => logMermaidChartClick('editInPlayground'),
-      renderer: mcMenuItem
-    },
-    {
-      label: 'Mermaid.js',
-      icon: MermaidTailIcon,
-      href: env.docsUrl,
-      renderer: menuItem
-    },
-    {
-      label: 'Documentation',
-      icon: BookIcon,
-      href: `${env.docsUrl}/intro/`,
-      renderer: menuItem
-    },
-    {
-      label: 'Community',
-      icon: CommunityIcon,
-      href: 'https://discord.gg/sKeNQX4Wtj',
+      label: 'Open file',
+      icon: UploadIcon,
+      href: '#',
+      onclick: openFile,
       renderer: menuItem
     },
     {
@@ -93,7 +89,12 @@
   <a
     href={options.href}
     target="_blank"
-    onclick={options.onclick}
+    onclick={(event) => {
+      if (options.href === '#') {
+        event.preventDefault();
+      }
+      options.onclick?.();
+    }}
     class={cn(
       'flex items-center justify-start gap-2 border-b-2 p-2 px-3 hover:bg-muted',
       options.isSectionEnd && 'border-border-dark',
