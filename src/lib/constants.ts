@@ -1,4 +1,7 @@
 export const TID = {
+  aiChatInput: 'ai-chat-input',
+  aiChatPanel: 'ai-chat-panel',
+  aiChatSend: 'ai-chat-send',
   aiHelpText: 'ai-help-text',
   aiRepairButton: 'ai-repair-button',
   copyMarkdown: 'copy-markdown',

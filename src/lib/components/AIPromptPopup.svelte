@@ -1,17 +1,18 @@
 <script lang="ts">
-  import { Button } from '$/components/ui/button';
   import { cn } from '$lib/utils.js';
   import CloseIcon from '~icons/material-symbols/close-rounded';
+  import SendIcon from '~icons/material-symbols/send-rounded';
 
   interface Props {
     show: boolean;
     input: string;
     onClose: () => void;
     onHeightChange?: (height: number) => void;
-    onTryFree: () => void;
+    onSend: (message: string) => void;
+    isLoading?: boolean;
   }
 
-  let { show, input = $bindable(), onClose, onHeightChange, onTryFree }: Props = $props();
+  let { show, input = $bindable(), onClose, onHeightChange, onSend, isLoading = false }: Props = $props();
 
   let textarea = $state<HTMLTextAreaElement>();
   let container = $state<HTMLDivElement>();
@@ -85,12 +86,13 @@
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             if (input.trim()) {
-              onTryFree();
+              onSend(input.trim());
             }
           }
         }}
         placeholder="Describe what to add or change"
         rows="1"
+        disabled={isLoading}
         class="focus font-recursive min-h-0 flex-1 resize-none border-none bg-transparent px-1 text-sm font-normal text-foreground placeholder:text-muted-foreground focus:ring-0 focus:outline-none disabled:opacity-50 dark:text-foreground dark:placeholder:text-muted-foreground"
         style="height: 20px; overflow-y: hidden;"></textarea>
       <button onclick={onClose} class="text-muted-foreground hover:text-foreground">
@@ -99,13 +101,17 @@
     </div>
 
     <div class="flex items-center justify-between">
-      <span class="font-recursive text-xs font-normal text-foreground dark:text-foreground"
-        >Sign Up at Mermaid.ai to try AI</span>
-      <Button
-        class="font-recursive h-6 w-16 gap-1.5 rounded-sm bg-accent p-1 text-xs font-medium text-white no-underline hover:bg-accent/90 hover:text-white hover:no-underline active:bg-accent/80 dark:bg-accent dark:text-white! dark:hover:bg-accent/90 dark:active:bg-accent/80"
-        onclick={onTryFree}>
-        Try free
-      </Button>
+      {#if isLoading}
+        <span class="font-recursive text-xs font-normal text-muted-foreground">Generating...</span>
+      {:else}
+        <span class="font-recursive text-xs font-normal text-muted-foreground">AI inline edit</span>
+      {/if}
+      <button
+        class="font-recursive flex h-6 w-6 items-center justify-center rounded-sm bg-accent p-1 text-white hover:bg-accent/90 active:bg-accent/80 disabled:opacity-50 dark:bg-accent dark:hover:bg-accent/90 dark:active:bg-accent/80"
+        onclick={() => { if (input.trim()) onSend(input.trim()); }}
+        disabled={!input.trim() || isLoading}>
+        <SendIcon class="size-3.5" />
+      </button>
     </div>
   </div>
 {/if}

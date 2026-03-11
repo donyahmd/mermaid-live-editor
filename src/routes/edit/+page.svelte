@@ -1,5 +1,6 @@
 <script lang="ts">
   import Actions from '$/components/Actions.svelte';
+  import AIChatPanel from '$/components/AIChatPanel.svelte';
   import Card from '$/components/Card/Card.svelte';
   import DiagramDocButton from '$/components/DiagramDocumentationButton.svelte';
   import Editor from '$/components/Editor.svelte';
@@ -28,6 +29,7 @@
   import CodeIcon from '~icons/custom/code';
   import HistoryIcon from '~icons/material-symbols/history';
   import GearIcon from '~icons/material-symbols/settings-outline-rounded';
+  import SparklesIcon from '~icons/material-symbols/auto-awesome-outline-rounded';
 
   const panZoomState = new PanZoomState();
 
@@ -63,6 +65,7 @@
   });
 
   let isHistoryOpen = $state(false);
+  let isAIChatOpen = $state(false);
 
   let editorPane: Resizable.Pane | undefined;
   $effect(() => {
@@ -86,6 +89,9 @@
   {/snippet}
 
   <Navbar mobileToggle={isMobile ? mobileToggle : undefined}>
+    <Toggle bind:pressed={isAIChatOpen} size="sm" title="AI Chat">
+      <SparklesIcon />
+    </Toggle>
     <Toggle bind:pressed={isHistoryOpen} size="sm">
       <HistoryIcon />
     </Toggle>
@@ -140,6 +146,12 @@
           <div class="absolute right-0 bottom-0"><VersionSecurityToolbar /></div>
           <div class="absolute bottom-0 left-0 sm:left-5"><SyncRoughToolbar /></div>
         </Resizable.Pane>
+        {#if isAIChatOpen}
+          <Resizable.Handle class="ml-1 hidden opacity-0 sm:block" />
+          <Resizable.Pane minSize={15} defaultSize={25} class="hidden h-full flex-col sm:flex">
+            <AIChatPanel onClose={() => (isAIChatOpen = false)} />
+          </Resizable.Pane>
+        {/if}
         {#if isHistoryOpen}
           <Resizable.Handle class="ml-1 hidden opacity-0 sm:block" />
           <Resizable.Pane minSize={15} defaultSize={30} class="hidden h-full grow flex-col sm:flex">

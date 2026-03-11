@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { EditorProps } from '$/types';
+  import { sendMessage, isChatLoadingStore } from '$/util/aiChat';
   import { env } from '$/util/env';
-  import { stateStore, urlsStore } from '$/util/state';
-  import { logMermaidChartClick } from '$/util/stats';
+  import { stateStore, updateCode } from '$/util/state';
   import { AIPromptViewZoneManager } from '$lib/util/AIPromptViewZoneManager';
   import { initEditor } from '$lib/util/monacoExtra';
   import { errorDebug } from '$lib/util/util';
@@ -31,6 +31,7 @@
   let popupPosition = $state({ top: 0, lineNumber: 0 });
   let decorationsCollection: monaco.editor.IEditorDecorationsCollection | undefined;
   let input = $state('');
+  let isInlineLoading = $state(false);
   let lastMouseLine = 0;
   const aiPromptManager = new AIPromptViewZoneManager();
 
@@ -88,6 +89,18 @@
       aiPromptManager.hide();
     }
     renderAIPromptGutterGlyphIcon();
+  };
+
+  const handleInlineSend = async (message: string) => {
+    const currentCode = editor?.getValue() ?? '';
+    const lineContext = popupPosition.lineNumber > 0
+      ? `\n\nThe user is editing near line ${popupPosition.lineNumber} of the diagram.`
+      : '';
+    const fullMessage = message + lineContext;
+    await sendMessage(fullMessage, currentCode, (code) => {
+      updateCode(code, { updateDiagram: true });
+    });
+    closePopup();
   };
 
   onMount(() => {
@@ -202,9 +215,12 @@
 
     renderAIPromptGutterGlyphIcon();
 
+    const unsubscribeInlineLoading = isChatLoadingStore.subscribe((v) => (isInlineLoading = v));
+
     return () => {
       unsubscribeState();
       unsubscribeMode();
+      unsubscribeInlineLoading();
       resizeObserver.disconnect();
       jsonModel.dispose();
       mermaidModel.dispose();
@@ -222,11 +238,8 @@
       bind:input
       onHeightChange={(height) => aiPromptManager.updateHeight(height)}
       onClose={closePopup}
-      onTryFree={() => {
-        logMermaidChartClick('vibeDiagramming');
-        window.open($urlsStore.mermaidChart({ medium: 'vibe_diagramming' }).save, '_blank');
-        closePopup();
-      }} />
+      onSend={handleInlineSend}
+      isLoading={isInlineLoading} />
   </div>
 </div>
 
