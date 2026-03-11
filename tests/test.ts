@@ -100,6 +100,14 @@ export class EditorPage {
     await this.page.getByTestId(TID.themeToggleButton).click();
   }
 
+  async openMainMenu() {
+    await this.page.getByTestId(TID.mainMenuTrigger).click();
+  }
+
+  async clickOpenFileFromMainMenu() {
+    await this.page.getByTestId(TID.mainMenuOpenFile).click();
+  }
+
   async checkTheme(theme: 'light' | 'dark') {
     await expect(this.page.getByTestId(TID.themeToggleButton)).toHaveAttribute(
       'title',

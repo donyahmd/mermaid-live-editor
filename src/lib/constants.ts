@@ -9,6 +9,8 @@ export const TID = {
   downloadPNG: 'download-PNG',
   downloadSVG: 'download-SVG',
   errorContainer: 'error-container',
+  mainMenuOpenFile: 'main-menu-open-file',
+  mainMenuTrigger: 'main-menu-trigger',
   themeToggleButton: 'theme-toggle-button'
 } as const;
 

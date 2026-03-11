@@ -1,7 +1,9 @@
 <script lang="ts">
   import McWrapper from '$/components/McWrapper.svelte';
+  import { TID } from '$/constants';
   import * as Popover from '$/components/ui/popover';
   import { Switch } from '$/components/ui/switch';
+  import { notify } from '$/util/notify';
   import { updateCodeStore, urlsStore } from '$/util/state';
   import { logMermaidChartClick } from '$/util/stats';
   import { cn } from '$/utils';
@@ -18,47 +20,86 @@
   interface MenuItem {
     label: string;
     icon: Component;
-    href: string;
+    href?: string;
     class?: string;
     onclick?: () => void;
     sharesData?: boolean;
     checkDiagramType?: boolean;
     isSectionEnd?: boolean;
+    rel?: string;
+    target?: '_blank' | '_self';
+    testID?: string;
     renderer: (item: Omit<MenuItem, 'renderer'>) => ReturnType<Snippet>;
   }
 
   const openFile = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.mmd,text/plain,.txt';
+    input.accept = '.mmd,.txt,.md,text/plain';
     input.addEventListener('change', async ({ target }: Event) => {
       const file = (target as HTMLInputElement)?.files?.[0];
       if (!file) {
         return;
       }
 
-      const code = await file.text();
-      updateCodeStore({
-        code,
-        updateDiagram: true
-      });
+      const fileName = file.name.toLowerCase();
+      const isAllowed = /\.(mmd|txt|md)$/.test(fileName) || file.type === 'text/plain';
+      if (!isAllowed) {
+        notify('Unsupported file type. Please use .mmd, .txt, or .md files.');
+        return;
+      }
+
+      try {
+        const code = await file.text();
+        if (!code.trim()) {
+          notify('Selected file is empty.');
+          return;
+        }
+
+        updateCodeStore({
+          code,
+          updateDiagram: true
+        });
+      } catch {
+        notify('Failed to read file. Please try again.');
+      }
     });
     input.click();
   };
 
+  const openFileAction = () => {
+    void openFile();
+  };
+
   const menuItems: MenuItem[] = $derived([
-    { label: 'New', icon: AddIcon, href: $urlsStore.new, renderer: menuItem },
-    { label: 'Duplicate', icon: DuplicateIcon, href: window.location.href, renderer: menuItem },
+    {
+      label: 'New',
+      icon: AddIcon,
+      href: $urlsStore.new,
+      rel: 'noopener noreferrer',
+      target: '_blank',
+      renderer: menuItem
+    },
+    {
+      label: 'Duplicate',
+      icon: DuplicateIcon,
+      href: window.location.href,
+      rel: 'noopener noreferrer',
+      target: '_blank',
+      renderer: menuItem
+    },
     {
       label: 'Open file',
       icon: UploadIcon,
-      href: '#',
-      onclick: openFile,
-      renderer: menuItem
+      onclick: openFileAction,
+      renderer: actionMenuItem,
+      testID: TID.mainMenuOpenFile
     },
     {
       checkDiagramType: false,
       href: $urlsStore.mermaidChart({ medium: 'main_menu' }).plugins,
+      rel: 'noopener noreferrer',
+      target: '_blank',
       icon: PluginIcon,
       label: 'Plugins',
       onclick: () => logMermaidChartClick('plugins'),
@@ -76,6 +117,8 @@
       checkDiagramType: false,
       class: 'text-accent border-b-0',
       href: $urlsStore.mermaidChart({ medium: 'main_menu' }).home,
+      rel: 'noopener noreferrer',
+      target: '_blank',
       icon: MermaidChartIcon,
       label: 'Mermaid',
       onclick: () => logMermaidChartClick('mermaidHome'),
@@ -88,11 +131,9 @@
 {#snippet menuItem(options: MenuItem)}
   <a
     href={options.href}
-    target="_blank"
-    onclick={(event) => {
-      if (options.href === '#') {
-        event.preventDefault();
-      }
+    target={options.target ?? '_blank'}
+    rel={options.rel ?? 'noopener noreferrer'}
+    onclick={() => {
       options.onclick?.();
     }}
     class={cn(
@@ -103,6 +144,21 @@
     <options.icon class="size-5" />
     {options.label}
   </a>
+{/snippet}
+
+{#snippet actionMenuItem(options: MenuItem)}
+  <button
+    type="button"
+    data-testid={options.testID}
+    onclick={options.onclick}
+    class={cn(
+      'flex w-full items-center justify-start gap-2 border-b-2 p-2 px-3 text-left hover:bg-muted',
+      options.isSectionEnd && 'border-border-dark',
+      options.class
+    )}>
+    <options.icon class="size-5" />
+    {options.label}
+  </button>
 {/snippet}
 
 {#snippet mcMenuItem(item: MenuItem)}
@@ -133,7 +189,7 @@
 {/snippet}
 
 <Popover.Root>
-  <Popover.Trigger class="shrink-0">
+  <Popover.Trigger class="shrink-0" data-testid={TID.mainMenuTrigger}>
     <MenuIcon class="size-6" />
   </Popover.Trigger>
   <Popover.Content align="start" class="flex flex-col overflow-hidden border-2 p-0" sideOffset={16}>

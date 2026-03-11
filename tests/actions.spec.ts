@@ -34,4 +34,21 @@ test.describe('Check actions', () => {
     expect(firstPngSize).not.toBe(secondPngSize);
     expect(firstSvgSize).not.toBe(secondSvgSize);
   });
+
+  test('should open local file from main menu', async ({ editPage, page }) => {
+    await editPage.openMainMenu();
+
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await editPage.clickOpenFileFromMainMenu();
+    const fileChooser = await fileChooserPromise;
+
+    await fileChooser.setFiles({
+      mimeType: 'text/plain',
+      name: 'open-from-menu.mmd',
+      buffer: 'graph TD\n  A[OpenFromMenu] --> B[Loaded]'
+    });
+
+    await editPage.checkInEditor('OpenFromMenu');
+    await editPage.checkTextInView('OpenFromMenu');
+  });
 });
