@@ -6,6 +6,12 @@ services:
       target: mermaid-dev
     volumes:
       - ./src:/app/src
+      - ./bin:/app/bin
+      - ./vite.config.js:/app/vite.config.js
+      - mermaid-diagrams:/app/data/diagrams
     ports:
       - 3000:3000
       - 24678:24678
+
+volumes:
+  mermaid-diagrams:
