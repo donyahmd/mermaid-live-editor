@@ -59,11 +59,7 @@
 
       <div class="flex flex-col gap-1.5">
         <label for="ai-apikey" class="text-sm font-medium text-foreground">API Key</label>
-        <Input
-          id="ai-apikey"
-          type="password"
-          bind:value={apiKey}
-          placeholder="sk-..." />
+        <Input id="ai-apikey" type="password" bind:value={apiKey} placeholder="sk-..." />
         <p class="text-xs text-muted-foreground">Your API key (stored locally in browser)</p>
       </div>
 
@@ -89,9 +85,11 @@
           id="ai-system-prompt"
           bind:value={systemPrompt}
           rows="8"
-          class="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:ring-0 focus:outline-none"></textarea>
+          class="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:ring-0 focus:outline-none"
+        ></textarea>
         <p class="text-xs text-muted-foreground">
-          System prompt sent to the AI. Pre-configured for Mermaid v11.12.0.
+          System prompt sent to the AI. Pre-configured for Mermaid v11.12.0 with strict output
+          format, conservative edits, and minimal-change error recovery.
         </p>
       </div>
     </div>
