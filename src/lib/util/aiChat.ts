@@ -1,5 +1,6 @@
 import { get, writable } from 'svelte/store';
 import { getAIConfig } from './aiConfig';
+import { currentFileStore } from './fileManager';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -14,8 +15,9 @@ const getChatScopeKey = (): string => {
     return `${CHAT_STORAGE_PREFIX}:server`;
   }
 
-  const signature = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-  return `${CHAT_STORAGE_PREFIX}:${encodeURIComponent(signature)}`;
+  const currentFile = get(currentFileStore);
+  const scope = currentFile ? `file:${currentFile}` : 'unsaved';
+  return `${CHAT_STORAGE_PREFIX}:${encodeURIComponent(scope)}`;
 };
 
 const loadPersistedChatMessages = (key = getChatScopeKey()): ChatMessage[] => {
@@ -51,7 +53,7 @@ const loadPersistedChatMessages = (key = getChatScopeKey()): ChatMessage[] => {
 export const chatMessagesStore = writable<ChatMessage[]>(loadPersistedChatMessages());
 export const isChatLoadingStore = writable(false);
 
-const syncChatScopeFromLocation = (): void => {
+const syncChatScope = (): void => {
   if (typeof window === 'undefined') {
     return;
   }
@@ -82,12 +84,13 @@ if (typeof window !== 'undefined') {
     }
   });
 
-  window.addEventListener('hashchange', syncChatScopeFromLocation);
-  window.addEventListener('popstate', syncChatScopeFromLocation);
+  currentFileStore.subscribe(() => {
+    syncChatScope();
+  });
 }
 
 export const clearChat = (): void => {
-  syncChatScopeFromLocation();
+  syncChatScope();
   chatMessagesStore.set([]);
 };
 
@@ -101,7 +104,7 @@ export const sendMessage = async (
   currentCode?: string,
   onCodeGenerated?: (code: string) => void
 ): Promise<void> => {
-  syncChatScopeFromLocation();
+  syncChatScope();
   const config = getAIConfig();
 
   if (!config.apiKey) {

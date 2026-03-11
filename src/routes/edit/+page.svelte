@@ -49,14 +49,25 @@
     }
   ];
 
+  const AI_CHAT_OPEN_STORAGE_KEY = 'aiChatPanelOpen';
+
   let width = $state(0);
   let isMobile = $derived(width < 640);
   let isViewMode = $state(true);
   let showEditorChooser = $state(false);
+  let hasLoadedAIChatOpen = $state(false);
 
   onMount(async () => {
     showEditorChooser = shouldShowEditorChooser();
     await initHandler();
+
+    const storedAIChatOpen = window.localStorage.getItem(AI_CHAT_OPEN_STORAGE_KEY);
+    if (storedAIChatOpen !== null) {
+      isAIChatOpen = storedAIChatOpen === 'true';
+    }
+
+    hasLoadedAIChatOpen = true;
+
     window.addEventListener('appinstalled', () => {
       logEvent('pwaInstalled', { isMobile });
     });
@@ -64,6 +75,12 @@
 
   let isHistoryOpen = $state(false);
   let isAIChatOpen = $state(false);
+
+  $effect(() => {
+    if (typeof window !== 'undefined' && hasLoadedAIChatOpen) {
+      window.localStorage.setItem(AI_CHAT_OPEN_STORAGE_KEY, String(isAIChatOpen));
+    }
+  });
 
   let editorPane: Resizable.Pane | undefined;
   $effect(() => {
