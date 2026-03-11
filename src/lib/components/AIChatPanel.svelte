@@ -10,7 +10,9 @@
   import { stateStore, updateCode } from '$/util/state';
   import { onMount } from 'svelte';
   import CheckIcon from '~icons/material-symbols/check-rounded';
+  import ChevronRightIcon from '~icons/material-symbols/chevron-right-rounded';
   import CloseIcon from '~icons/material-symbols/close-rounded';
+  import CodeIcon from '~icons/material-symbols/code-rounded';
   import DeleteIcon from '~icons/material-symbols/delete-outline-rounded';
   import GearIcon from '~icons/material-symbols/settings-outline-rounded';
   import SendIcon from '~icons/material-symbols/send-rounded';
@@ -26,6 +28,14 @@
   let textarea: HTMLTextAreaElement | undefined = $state();
   let showConfig = $state(false);
   let autoApplied = $state(false);
+  let expandedBlocks = $state(new Set<string>());
+
+  const toggleBlock = (key: string) => {
+    const next = new Set(expandedBlocks);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    expandedBlocks = next;
+  };
 
   const scrollToBottom = () => {
     if (messagesContainer) {
@@ -91,9 +101,10 @@
   ];
 
   const renderMessageContent = (
-    content: string
-  ): Array<{ type: 'text' | 'mermaid'; content: string }> => {
-    const parts: Array<{ type: 'text' | 'mermaid'; content: string }> = [];
+    content: string,
+    isStreaming = false
+  ): Array<{ type: 'text' | 'mermaid' | 'mermaid-streaming'; content: string }> => {
+    const parts: Array<{ type: 'text' | 'mermaid' | 'mermaid-streaming'; content: string }> = [];
     const regex = /```mermaid\n([\s\S]*?)```/g;
     let lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -107,7 +118,19 @@
     }
 
     if (lastIndex < content.length) {
-      parts.push({ type: 'text', content: content.slice(lastIndex) });
+      const remaining = content.slice(lastIndex);
+      // During streaming, detect an open ```mermaid block that hasn't been closed yet
+      if (isStreaming) {
+        const openMatch = /```mermaid\n([\s\S]*)$/.exec(remaining);
+        if (openMatch) {
+          if (openMatch.index > 0) {
+            parts.push({ type: 'text', content: remaining.slice(0, openMatch.index) });
+          }
+          parts.push({ type: 'mermaid-streaming', content: openMatch[1] });
+          return parts.length > 0 ? parts : [{ type: 'text', content }];
+        }
+      }
+      parts.push({ type: 'text', content: remaining });
     }
 
     return parts.length > 0 ? parts : [{ type: 'text', content }];
@@ -182,7 +205,7 @@
     {:else}
       <!-- Messages list -->
       <div class="flex flex-col gap-3">
-        {#each $chatMessagesStore as message}
+        {#each $chatMessagesStore as message, messageIdx}
           {#if message.role === 'user'}
             <div class="flex justify-end">
               <div
@@ -191,20 +214,58 @@
               </div>
             </div>
           {:else if message.role === 'assistant'}
+            {@const isLastMsg = messageIdx === $chatMessagesStore.length - 1}
+            {@const isThisStreaming = isLastMsg && $isChatLoadingStore}
             <div class="flex justify-start">
               <div
                 class="max-w-[85%] rounded-2xl rounded-bl-sm bg-muted px-3 py-2 text-sm text-foreground">
-                {#each renderMessageContent(message.content) as part}
-                  {#if part.type === 'mermaid'}
-                    <div class="my-1 flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs">
-                      <CheckIcon class="size-3 text-green-600 dark:text-green-400" />
-                      <span class="text-muted-foreground">Diagram applied to editor</span>
-                      <button
-                        onclick={() => handleApplyCode(part.content)}
-                        class="ml-auto text-muted-foreground hover:text-foreground"
-                        title="Re-apply this diagram">
-                        Re-apply
-                      </button>
+                {#each renderMessageContent(message.content, isThisStreaming) as part, partIdx}
+                  {#if part.type === 'mermaid' || part.type === 'mermaid-streaming'}
+                    {@const blockKey = `${messageIdx}-${partIdx}`}
+                    {@const isExpanded = expandedBlocks.has(blockKey)}
+                    {@const streaming = part.type === 'mermaid-streaming'}
+                    {@const lineCount = part.content ? part.content.split('\n').length : 0}
+                    <div class="my-1 overflow-hidden rounded-md border border-border bg-background text-xs">
+                      <div class="flex items-center gap-1 px-2 py-1.5">
+                        <button
+                          onclick={() => toggleBlock(blockKey)}
+                          class="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                          title={isExpanded ? 'Collapse code' : 'Expand code'}>
+                          <ChevronRightIcon
+                            class="size-3.5 transition-transform duration-150 {isExpanded ? 'rotate-90' : ''}" />
+                          <CodeIcon class="size-3 {streaming ? 'text-muted-foreground' : 'text-accent'}" />
+                          {#if streaming}
+                            <span class="text-muted-foreground">
+                              {lineCount > 0 ? `${lineCount} line${lineCount !== 1 ? 's' : ''}` : 'mermaid'}
+                            </span>
+                          {:else}
+                            <span>{lineCount} line{lineCount !== 1 ? 's' : ''}</span>
+                          {/if}
+                        </button>
+                        <span class="mx-1 text-border">·</span>
+                        {#if streaming}
+                          <div class="flex items-center gap-1">
+                            <div class="typing-dot size-1.5"></div>
+                            <div class="typing-dot delay-150 size-1.5"></div>
+                            <div class="typing-dot delay-300 size-1.5"></div>
+                          </div>
+                          <span class="text-muted-foreground">Generating...</span>
+                        {:else}
+                          <CheckIcon class="size-3 text-green-600 dark:text-green-400" />
+                          <span class="text-muted-foreground">Applied</span>
+                          <button
+                            onclick={() => handleApplyCode(part.content)}
+                            class="ml-auto text-muted-foreground hover:text-foreground"
+                            title="Re-apply this diagram">
+                            Re-apply
+                          </button>
+                        {/if}
+                      </div>
+                      {#if isExpanded}
+                        <div class="border-t border-border bg-muted/40 px-2.5 py-2">
+                          <pre class="whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-foreground">{part.content}</pre>
+                        </div>
+                      {/if}
                     </div>
                   {:else}
                     <p class="whitespace-pre-wrap">{part.content}</p>
