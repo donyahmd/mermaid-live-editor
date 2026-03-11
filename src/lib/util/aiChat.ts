@@ -6,10 +6,88 @@ export interface ChatMessage {
   content: string;
 }
 
-export const chatMessagesStore = writable<ChatMessage[]>([]);
+const CHAT_STORAGE_PREFIX = 'aiChatMessages';
+let currentChatScopeKey = '';
+
+const getChatScopeKey = (): string => {
+  if (typeof window === 'undefined') {
+    return `${CHAT_STORAGE_PREFIX}:server`;
+  }
+
+  const signature = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  return `${CHAT_STORAGE_PREFIX}:${encodeURIComponent(signature)}`;
+};
+
+const loadPersistedChatMessages = (key = getChatScopeKey()): ChatMessage[] => {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter(
+      (item): item is ChatMessage =>
+        typeof item === 'object' &&
+        item !== null &&
+        'role' in item &&
+        'content' in item &&
+        (item.role === 'user' || item.role === 'assistant' || item.role === 'system') &&
+        typeof item.content === 'string'
+    );
+  } catch {
+    return [];
+  }
+};
+
+export const chatMessagesStore = writable<ChatMessage[]>(loadPersistedChatMessages());
 export const isChatLoadingStore = writable(false);
 
+const syncChatScopeFromLocation = (): void => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const nextKey = getChatScopeKey();
+  if (nextKey === currentChatScopeKey) {
+    return;
+  }
+
+  currentChatScopeKey = nextKey;
+  chatMessagesStore.set(loadPersistedChatMessages(nextKey));
+};
+
+if (typeof window !== 'undefined') {
+  currentChatScopeKey = getChatScopeKey();
+
+  chatMessagesStore.subscribe((messages: ChatMessage[]) => {
+    const key = currentChatScopeKey || getChatScopeKey();
+
+    try {
+      if (messages.length === 0) {
+        window.localStorage.removeItem(key);
+      } else {
+        window.localStorage.setItem(key, JSON.stringify(messages));
+      }
+    } catch {
+      // Ignore storage errors (quota/private mode)
+    }
+  });
+
+  window.addEventListener('hashchange', syncChatScopeFromLocation);
+  window.addEventListener('popstate', syncChatScopeFromLocation);
+}
+
 export const clearChat = (): void => {
+  syncChatScopeFromLocation();
   chatMessagesStore.set([]);
 };
 
@@ -23,10 +101,11 @@ export const sendMessage = async (
   currentCode?: string,
   onCodeGenerated?: (code: string) => void
 ): Promise<void> => {
+  syncChatScopeFromLocation();
   const config = getAIConfig();
 
   if (!config.apiKey) {
-    chatMessagesStore.update((msgs) => [
+    chatMessagesStore.update((msgs: ChatMessage[]) => [
       ...msgs,
       { role: 'user', content: userMessage },
       {
@@ -38,7 +117,7 @@ export const sendMessage = async (
     return;
   }
 
-  chatMessagesStore.update((msgs) => [...msgs, { role: 'user', content: userMessage }]);
+  chatMessagesStore.update((msgs: ChatMessage[]) => [...msgs, { role: 'user', content: userMessage }]);
   isChatLoadingStore.set(true);
 
   const messages: ChatMessage[] = [{ role: 'system', content: config.systemPrompt }];
@@ -57,7 +136,7 @@ export const sendMessage = async (
   }
 
   // Add placeholder for assistant response
-  chatMessagesStore.update((msgs) => [...msgs, { role: 'assistant', content: '' }]);
+  chatMessagesStore.update((msgs: ChatMessage[]) => [...msgs, { role: 'assistant', content: '' }]);
 
   const endpoint = config.apiEndpoint.replace(/\/+$/, '');
   const url = `${endpoint}/chat/completions`;
@@ -117,7 +196,7 @@ export const sendMessage = async (
           const delta = parsed.choices?.[0]?.delta?.content;
           if (delta) {
             fullContent += delta;
-            chatMessagesStore.update((msgs) => {
+            chatMessagesStore.update((msgs: ChatMessage[]) => {
               const updated = [...msgs];
               const lastMsg = updated[updated.length - 1];
               if (lastMsg?.role === 'assistant') {
@@ -150,7 +229,7 @@ export const sendMessage = async (
       if (fallbackResponse.ok) {
         const json = await fallbackResponse.json();
         fullContent = json.choices?.[0]?.message?.content ?? '';
-        chatMessagesStore.update((msgs) => {
+        chatMessagesStore.update((msgs: ChatMessage[]) => {
           const updated = [...msgs];
           const lastMsg = updated[updated.length - 1];
           if (lastMsg?.role === 'assistant') {
@@ -171,7 +250,7 @@ export const sendMessage = async (
 
     // If still empty, show error
     if (!fullContent) {
-      chatMessagesStore.update((msgs) => {
+      chatMessagesStore.update((msgs: ChatMessage[]) => {
         const updated = [...msgs];
         const lastMsg = updated[updated.length - 1];
         if (lastMsg?.role === 'assistant') {
@@ -185,7 +264,7 @@ export const sendMessage = async (
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    chatMessagesStore.update((msgs) => {
+    chatMessagesStore.update((msgs: ChatMessage[]) => {
       const updated = [...msgs];
       const lastMsg = updated[updated.length - 1];
       if (lastMsg?.role === 'assistant') {
