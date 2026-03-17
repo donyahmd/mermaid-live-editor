@@ -1,9 +1,12 @@
 <script lang="ts">
   import { Toaster } from '$/components/ui/sonner/index.js';
+  import { authStore, isProtectedPath } from '$/stores/auth';
   import { loadingStateStore } from '$/util/loading';
   import { toggleDarkTheme } from '$/util/state';
   import { initHandler } from '$/util/util';
+  import { goto } from '$app/navigation';
   import { base } from '$app/paths';
+  import { page } from '$app/stores';
   import { mode, ModeWatcher } from 'mode-watcher';
   import { onMount, type Snippet } from 'svelte';
   import '../app.css';
@@ -14,9 +17,25 @@
 
   let { children }: Props = $props();
 
+  const normalizePath = (pathname: string): string => {
+    if (!base || base === '/') {
+      return pathname;
+    }
+
+    if (pathname.startsWith(base)) {
+      const strippedPath = pathname.slice(base.length);
+      return strippedPath.startsWith('/') ? strippedPath : `/${strippedPath}`;
+    }
+
+    return pathname;
+  };
+
   // This can be removed once https://github.com/sveltejs/kit/issues/1612 is fixed.
   // Then move it into src and vite will bundle it automatically.
   onMount(() => {
+    authStore.hydrate();
+    authStore.refreshWhitelist();
+
     window.addEventListener('hashchange', () => {
       void initHandler();
     });
@@ -35,6 +54,30 @@
 
   $effect(() => {
     toggleDarkTheme($mode === 'dark');
+  });
+
+  $effect(() => {
+    const currentPath = normalizePath($page.url.pathname);
+    if (!$authStore.isHydrated) {
+      return;
+    }
+
+    if (!$authStore.isAuthenticated && isProtectedPath(currentPath)) {
+      const returnTo = `${currentPath}${$page.url.hash}`;
+      void goto(`${base}/login?returnTo=${encodeURIComponent(returnTo)}`, {
+        replaceState: true
+      });
+      return;
+    }
+
+    if ($authStore.isAuthenticated && !$authStore.isWhitelisted && isProtectedPath(currentPath)) {
+      void goto(`${base}/access-denied`, { replaceState: true });
+      return;
+    }
+
+    if ($authStore.isAuthenticated && $authStore.isWhitelisted && currentPath === '/login') {
+      void goto(`${base}/edit`, { replaceState: true });
+    }
   });
 </script>
 

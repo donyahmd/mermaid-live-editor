@@ -32,7 +32,7 @@ export default defineConfig({
     alwaysFullReload,
     devtoolsJson()
   ],
-  envPrefix: 'MERMAID_',
+  envPrefix: ['MERMAID_', 'GOOGLE_', 'ALLOWED_'],
   server: { port: 3000, host: true },
   preview: { port: 3000, host: true },
   test: {

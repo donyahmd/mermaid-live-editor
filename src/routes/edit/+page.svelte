@@ -13,16 +13,20 @@
   import Share from '$/components/Share.svelte';
   import SyncRoughToolbar from '$/components/SyncRoughToolbar.svelte';
   import * as Resizable from '$/components/ui/resizable';
+  import { Button } from '$/components/ui/button';
   import { Switch } from '$/components/ui/switch';
   import { Toggle } from '$/components/ui/toggle';
   import VersionSecurityToolbar from '$/components/VersionSecurityToolbar.svelte';
   import View from '$/components/View.svelte';
   import type { EditorMode, Tab } from '$/types';
+  import { authStore } from '$/stores/auth';
   import { shouldShowEditorChooser } from '$/util/migration/domainMigration';
   import { PanZoomState } from '$/util/panZoom';
   import { stateStore, updateCodeStore } from '$/util/state';
   import { logEvent } from '$/util/stats';
   import { initHandler } from '$/util/util';
+  import { goto } from '$app/navigation';
+  import { base } from '$app/paths';
   import { onMount } from 'svelte';
   import CodeIcon from '~icons/custom/code';
   import HistoryIcon from '~icons/material-symbols/history';
@@ -88,6 +92,10 @@
       editorPane?.resize(50);
     }
   });
+  const logout = async () => {
+    authStore.logout();
+    await goto(`${base}/login`, { replaceState: true });
+  };
 </script>
 
 <div class="flex h-full flex-col overflow-hidden">
@@ -112,6 +120,10 @@
     </Toggle>
     <Share />
     <FileMenu />
+    {#if $authStore.user}
+      <span class="max-w-[220px] truncate text-xs opacity-70">{$authStore.user.email}</span>
+    {/if}
+    <Button variant="outline" size="sm" onclick={logout}>Logout</Button>
   </Navbar>
 
   <div class="flex flex-1 flex-col overflow-hidden" bind:clientWidth={width}>

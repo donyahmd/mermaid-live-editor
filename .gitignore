@@ -1,5 +1,6 @@
 .DS_Store
 .cache/
+.env
 .env.local
 .npmrc
 /.svelte-kit
