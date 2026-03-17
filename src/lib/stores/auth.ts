@@ -15,40 +15,18 @@ interface AuthState {
   user: AuthUser | null;
 }
 
-interface GoogleCredentialPayload {
-  email?: string;
-  name?: string;
-  picture?: string;
-  sub?: string;
-}
-
 const AUTH_STORAGE_KEY = 'mermaidLiveAuth';
-
-const initialState: AuthState = {
-  isAuthenticated: false,
-  isHydrated: false,
-  isWhitelisted: false,
-  user: null
-};
 
 const isAllowedEmail = (email: string): boolean => {
   const normalizedEmail = email.trim().toLowerCase();
   return env.allowedEmails.includes(normalizedEmail);
 };
 
-const decodeGoogleCredential = (credential: string): GoogleCredentialPayload | null => {
-  try {
-    const payloadBase64 = credential.split('.')[1];
-    if (!payloadBase64) {
-      return null;
-    }
-
-    const normalized = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
-    const decoded = atob(normalized);
-    return JSON.parse(decoded) as GoogleCredentialPayload;
-  } catch {
-    return null;
-  }
+const initialState: AuthState = {
+  isAuthenticated: false,
+  isHydrated: false,
+  isWhitelisted: false,
+  user: null
 };
 
 const getStoredUser = (): AuthUser | null => {
@@ -85,7 +63,6 @@ const createAuthStore = () => {
   const { set, subscribe, update } = writable<AuthState>(initialState);
 
   return {
-    subscribe,
     hydrate() {
       const user = getStoredUser();
       const isWhitelisted = user ? isAllowedEmail(user.email) : false;
@@ -97,36 +74,63 @@ const createAuthStore = () => {
         user
       });
     },
-    loginWithGoogleCredential(credential: string) {
-      const payload = decodeGoogleCredential(credential);
-      if (!payload?.email) {
+    async loginWithGoogleCredential(credential: string) {
+      try {
+        // Verify token with server-side Netlify Function
+        const response = await fetch('/.netlify/functions/verify-google-token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ credential })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('Token verification failed:', errorData);
+          return {
+            success: false,
+            whitelisted: false
+          };
+        }
+
+        const data = await response.json();
+
+        if (!data.success || !data.user) {
+          return {
+            success: false,
+            whitelisted: false
+          };
+        }
+
+        const user: AuthUser = {
+          email: data.user.email,
+          name: data.user.name,
+          picture: data.user.picture,
+          sub: data.user.sub
+        };
+
+        const whitelisted = data.whitelisted;
+        persistUser(user);
+
+        set({
+          isAuthenticated: true,
+          isHydrated: true,
+          isWhitelisted: whitelisted,
+          user
+        });
+
+        return {
+          success: true,
+          whitelisted
+        };
+      } catch (error) {
+        console.error('Login error:', error);
         return {
           success: false,
           whitelisted: false
         };
       }
-
-      const user: AuthUser = {
-        email: payload.email,
-        name: payload.name,
-        picture: payload.picture,
-        sub: payload.sub
-      };
-
-      const whitelisted = isAllowedEmail(user.email);
-      persistUser(user);
-
-      set({
-        isAuthenticated: true,
-        isHydrated: true,
-        isWhitelisted: whitelisted,
-        user
-      });
-
-      return {
-        success: true,
-        whitelisted
-      };
     },
     logout() {
       persistUser(null);
@@ -149,7 +153,8 @@ const createAuthStore = () => {
           isWhitelisted: isAllowedEmail(state.user.email)
         };
       });
-    }
+    },
+    subscribe
   };
 };
 
