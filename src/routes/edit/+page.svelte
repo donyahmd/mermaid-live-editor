@@ -92,10 +92,6 @@
       editorPane?.resize(50);
     }
   });
-  const logout = async () => {
-    authStore.logout();
-    await goto(`${base}/login`, { replaceState: true });
-  };
 </script>
 
 <div class="flex h-full flex-col overflow-hidden">
@@ -120,10 +116,6 @@
     </Toggle>
     <Share />
     <FileMenu />
-    {#if $authStore.user}
-      <span class="max-w-[220px] truncate text-xs opacity-70">{$authStore.user.email}</span>
-    {/if}
-    <Button variant="outline" size="sm" onclick={logout}>Logout</Button>
   </Navbar>
 
   <div class="flex flex-1 flex-col overflow-hidden" bind:clientWidth={width}>
