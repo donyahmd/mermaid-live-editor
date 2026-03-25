@@ -4,6 +4,10 @@ services:
     build:
       context: .
       target: mermaid-dev
+      args:
+        GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+        GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+        ALLOWED_EMAILS: ${ALLOWED_EMAILS}
     volumes:
       - ./src:/app/src
       - ./bin:/app/bin
@@ -12,6 +16,10 @@ services:
     ports:
       - 3000:3000
       - 24678:24678
+    environment:
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - ALLOWED_EMAILS=${ALLOWED_EMAILS}
 
 volumes:
   mermaid-diagrams:

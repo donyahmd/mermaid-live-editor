@@ -76,8 +76,8 @@ const createAuthStore = () => {
     },
     async loginWithGoogleCredential(credential: string) {
       try {
-        // Verify token with server-side Netlify Function
-        const response = await fetch('/.netlify/functions/verify-google-token', {
+        // Verify token with server-side SvelteKit endpoint
+        const response = await fetch('/api/verify-google-token', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

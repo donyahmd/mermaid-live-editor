@@ -54,7 +54,7 @@
   };
 
   const handleLoginSuccess = async (credential: string) => {
-    const result = authStore.loginWithGoogleCredential(credential);
+    const result = await authStore.loginWithGoogleCredential(credential);
 
     if (!result.success) {
       notify('Gagal membaca data login Google. Silakan coba lagi.');
